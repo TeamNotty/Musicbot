@@ -14,3 +14,4 @@ pymongo[srv]==4.6.3
 python-dotenv
 pydantic
 aiohttp==3.9.5
+flask==3.0.3
