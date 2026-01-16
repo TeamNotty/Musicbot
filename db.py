@@ -75,6 +75,52 @@ async def reduce_country_stock(code: str, qty: int = 1):
         {"$inc": {"stock": -qty}}
     )
 
+#session file function 
+
+
+async def add_session_file(country: str, file_id: str):
+    await tg_sessions.insert_one({
+        "country": country,
+        "file_id": file_id,
+        "used": False,
+        "added_at": datetime.utcnow()
+    })
+async def get_country_stock(country: str) -> int:
+    return await tg_sessions.count_documents({
+        "country": country,
+        "used": False
+    })
+
+async def get_one_session(country: str):
+    return await tg_sessions.find_one_and_update(
+        {"country": country, "used": False},
+        {"$set": {"used": True}}
+    )
+
+async def get_one_session(country: str):
+    return await tg_sessions.find_one_and_update(
+        {"country": country, "used": False},
+        {"$set": {"used": True}}
+    )
+
+
+async def get_countries_stock_sorted():
+    pipeline = [
+        {
+            "$match": {"used": False}
+        },
+        {
+            "$group": {
+                "_id": "$country",
+                "stock": {"$sum": 1}
+            }
+        },
+        {
+            "$sort": {"stock": -1}
+        }
+    ]
+    return await tg_sessions.aggregate(pipeline).to_list(length=100)
+
 
 # ---------------------------------------------------
 # User functions
