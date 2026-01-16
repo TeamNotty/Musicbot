@@ -9,6 +9,7 @@
 
  
 import logging
+import math
 import motor.motor_asyncio
 from config import MONGO_URI, DB_NAME
 from datetime import datetime
@@ -22,11 +23,63 @@ db = client[DB_NAME]
 users = db["users"]
 orders = db["orders"]
 activity = db["activity"]
+tg_account_stock = db["tg_account_stock"]
+
+#heloers config
+COUNTRIES_PER_PAGE = 12
+
+
+# ---------------------------------------------------
+# by account functions
+# ---------------------------------------------------
+
+async def upsert_country_stock(country: str, code: str, stock: int, price: int):
+    await tg_account_stock.update_one(
+        {"code": code},
+        {"$set": {
+            "country": country,
+            "code": code,
+            "stock": stock,
+            "price": price,
+            "updated_at": datetime.utcnow()
+        }},
+        upsert=True
+    )
+
+
+async def get_countries_sorted():
+    cursor = tg_account_stock.find().sort(
+        [("stock", -1), ("country", 1)]
+    )
+    return await cursor.to_list(length=1000)
+
+
+
+async def get_countries_page(page: int):
+    skip = (page - 1) * COUNTRIES_PER_PAGE
+
+    cursor = tg_account_stock.find().sort(
+        [("stock", -1), ("country", 1)]
+    ).skip(skip).limit(COUNTRIES_PER_PAGE)
+
+    return await cursor.to_list(length=COUNTRIES_PER_PAGE)
+
+async def get_total_country_pages():
+    total = await tg_account_stock.count_documents({})
+    return math.ceil(total / COUNTRIES_PER_PAGE)
+
+
+async def reduce_country_stock(code: str, qty: int = 1):
+    await tg_account_stock.update_one(
+        {"code": code, "stock": {"$gte": qty}},
+        {"$inc": {"stock": -qty}}
+    )
+
 
 # ---------------------------------------------------
 # User functions
-# ---------------------------------------------------
-
+# --------------------------------------------------
+ 
 async def log_activity(user_id: int, action: str):
     await activity.insert_one({
         "user_id": user_id,
